@@ -11,7 +11,7 @@ let total = 0;
 let pendingRequest = 0;
 
 function defaultValues() {
-  return { mission: '', biome: '', mutator: DEFAULT_MUTATOR, warning: '', length: '', season: currentSeason };
+  return { mission: '', biome: '', mutator: DEFAULT_MUTATOR, warning: '', warning_mode: '', length: '', season: currentSeason };
 }
 
 function currentFilters() {

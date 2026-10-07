@@ -314,6 +314,21 @@ class Api(unittest.TestCase):
         self.assertEqual(self.biomes(warning="Unknown"), [])
         self.assertEqual(api.filters({})["warnings"], ["Pit Jaw Colony"])
 
+    def test_all_selected_warnings(self):
+        db = sqlite3.connect(api.DB_PATH)
+        mission = {"PrimaryObjective": "Egg Hunt", "SecondaryObjective": "x", "Length": 1, "Complexity": 1,
+                   "CodeName": "n", "included_in": ["s0"], "Seed": 1}
+        collect.archive_day(db, "2026-10-05", {"2026-10-05T10:00:00Z": {"Biomes": {
+            "Dense Biozone": [{**mission, "MissionWarnings": ["Elite Threat", "Low Oxygen"]}],
+            "Fungus Bogs": [{**mission, "MissionWarnings": ["Elite Threat"]}]}}})
+        db.close()
+        both = "Elite Threat,Low Oxygen"
+        self.assertEqual(self.biomes(warning=both), ["Dense Biozone", "Fungus Bogs"])  # any of them
+        self.assertEqual(self.biomes(warning=both, warning_mode="all"), ["Dense Biozone"])  # both
+        self.assertEqual(self.biomes(warning="Elite Threat", warning_mode="all"), ["Dense Biozone", "Fungus Bogs"])
+        self.assertEqual(self.biomes(warning="Elite Threat,none", warning_mode="all"), [])  # contradictory
+        self.assertEqual(self.biomes(warning=both, warning_mode="other"), ["Dense Biozone", "Fungus Bogs"])
+
     def test_upcoming_is_filtered(self):
         self.assertEqual([m["name"] for m in api.upcoming({"mutator": "Double XP"})["missions"]], ["Recent"])
         self.assertEqual(api.upcoming({"mutator": "none"})["missions"], [])

@@ -8,7 +8,7 @@ GET /api/missions?...&period=&page=
 Both mission lists accept the same filters: mission=, biome=, mutator=, warning=, length=, season=.
 mission, biome, mutator and warning accept several values separated by commas; mutator=none and
 warning=none select the missions without a mutator / without any warning. A mission matches the
-warning filter when it has at least one of the selected warnings.
+warning filter when it has at least one of the selected warnings, or all of them with warning_mode=all.
 """
 import json
 import os
@@ -80,7 +80,9 @@ def filter_conditions(params):
         values.extend(json.dumps(w, ensure_ascii=False) for w in warnings if w != NO_WARNING)  # as stored
         if NO_WARNING in warnings:
             parts.append("warnings = '[]'")
-        conditions.append(f"({' OR '.join(parts)})")
+        # "any" (default): at least one of the selected warnings; "all": every one of them.
+        joiner = " AND " if params.get("warning_mode") == "all" else " OR "
+        conditions.append(f"({joiner.join(parts)})")
     if params.get("length"):
         conditions.append("length = ?")
         values.append(int(params["length"]))

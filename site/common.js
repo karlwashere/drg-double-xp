@@ -341,7 +341,9 @@ function readMulti(block) {
   all.indeterminate = checked.length > 0 && checked.length < boxes.length;
   block.querySelector('input[type=hidden]').value =
     checked.length && checked.length < boxes.length ? checked.map((b) => b.value).join(',') : '';
-  block.querySelector('summary').textContent = multiSummary(checked, boxes.length);
+  const mode = block.querySelector('[data-mode]');
+  const allMode = mode && mode.checked && checked.length > 1 && checked.length < boxes.length;
+  block.querySelector('summary').textContent = multiSummary(checked, boxes.length) + (allMode ? ' (all)' : '');
 }
 
 // Checks the boxes from a value (address, saved filters, reset).
@@ -365,6 +367,15 @@ function fillMulti(block, values, label = (v) => v) {
   readMulti(block);
 }
 
+// A panel that would overflow the window on the right (last column) opens aligned on the right instead.
+document.addEventListener('toggle', (e) => {
+  const details = e.target;
+  if (!details.matches || !details.matches('.multi details') || !details.open) return;
+  const panel = details.querySelector('.multi-panel');
+  panel.classList.remove('align-right');
+  if (panel.getBoundingClientRect().right > document.documentElement.clientWidth - 8) panel.classList.add('align-right');
+}, true); // "toggle" does not bubble: listened to during the capture phase
+
 // One panel open at a time; a click elsewhere or Escape closes it.
 document.addEventListener('click', (e) => {
   for (const d of document.querySelectorAll('.multi details[open]')) {
@@ -387,6 +398,12 @@ function fillFilters(form, f) {
     (v) => (v === NO_MUTATOR ? 'No mutator' : v));
   fillMulti(form.elements.namedItem('warning').closest('.multi'), [...f.warnings, NO_WARNING],
     (v) => (v === NO_WARNING ? 'No warning' : v));
+  // "Must have all selected": only missions without a mutator can have two warnings, so ticking it
+  // clears the mutator filter (otherwise Double XP, the default, would always give no result).
+  // Listened to on the box itself: the mutator filter is cleared before the form reacts.
+  form.elements.namedItem('warning_mode').addEventListener('change', (e) => {
+    if (e.target.checked) writeMulti(form.elements.namedItem('mutator').closest('.multi'), '');
+  });
   const season = form.elements.namedItem('season');
   for (const s of f.seasons.slice().reverse()) {
     season.add(new Option(s === f.current_season ? `Current (${s.slice(1)})` : seasonName(s), s));
@@ -399,7 +416,10 @@ function applyFilters(form, values) {
     const field = form.elements.namedItem(key);
     if (!field) continue;
     if (field.type === 'hidden') writeMulti(field.closest('.multi'), value);
-    else if ([...field.options].some((o) => o.value === value)) field.value = value;
+    else if (field.type === 'checkbox') {
+      field.checked = value === field.value;
+      readMulti(field.closest('.multi'));
+    } else if ([...field.options].some((o) => o.value === value)) field.value = value;
   }
 }
 

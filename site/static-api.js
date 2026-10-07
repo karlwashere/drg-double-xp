@@ -90,16 +90,23 @@
       const k = v === NO_MUTATOR ? -1 : d.mutator.indexOf(v);
       if (v === NO_MUTATOR || k !== -1) mutators.add(k);
     }
-    // A mission matches the warning filter when it has at least one of the selected warnings.
+    // A mission matches the warning filter when it has at least one of the selected warnings, or all
+    // of them with warning_mode=all. An unknown warning never matches (like instr() in api.py).
     const warningValues = choice(params.warning);
     const noWarning = !!warningValues && warningValues.includes(NO_WARNING);
-    const warnings = warningValues && new Set(warningValues.map((v) => d.warning.indexOf(v)).filter((k) => k !== -1));
+    const named = (warningValues || []).filter((v) => v !== NO_WARNING).map((v) => d.warning.indexOf(v));
+    const allWarnings = params.warning_mode === 'all';
+    const warningTest = (r) => {
+      const tests = named.map((k) => k !== -1 && r[WARNINGS].includes(k));
+      if (noWarning) tests.push(r[WARNINGS].length === 0);
+      return allWarnings ? tests.every(Boolean) : tests.some(Boolean);
+    };
     const length = params.length ? integer(params.length) : null;
     const season = params.season ? d.season.indexOf(params.season) : null;
     return (r) => (!missionTypes || missionTypes.has(r[MISSION]))
       && (!biomes || biomes.has(r[BIOME]))
       && (!mutators || mutators.has(r[MUTATOR]))
-      && (!warnings || (noWarning && r[WARNINGS].length === 0) || r[WARNINGS].some((w) => warnings.has(w)))
+      && (!warningValues || warningTest(r))
       && (length === null || r[LENGTH] === length)
       && (season === null || r[SEASONS].includes(season));
   }

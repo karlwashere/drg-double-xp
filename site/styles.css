@@ -376,6 +376,8 @@ main > .filters:first-child { margin-top: 16px; }
 .multi-panel label:hover { background: var(--card); }
 .multi-panel .multi-all { font-weight: 600; border-bottom: 1px solid var(--border); border-radius: 6px 6px 0 0; margin-bottom: 4px; }
 .multi-panel input { width: 16px; height: 16px; margin: 0; flex: none; accent-color: var(--amber); }
+.multi-panel.align-right { left: auto; right: 0; }
+.multi-panel .multi-mode { border-top: 1px solid var(--border); border-radius: 0 0 6px 6px; margin-top: 4px; color: var(--muted); }
 
 .link-button {
   justify-self: start;
@@ -417,7 +419,7 @@ main > .filters:first-child { margin-top: 16px; }
 @media (max-width: 560px) {
   .multi, .multi details { position: static; }
   .filters { position: relative; }
-  .multi-panel { left: 14px; right: 14px; top: auto; min-width: 0; margin-top: 6px; }
+  .multi-panel, .multi-panel.align-right { left: 14px; right: 14px; top: auto; min-width: 0; margin-top: 6px; }
 }
 
 @media (max-width: 420px) {
