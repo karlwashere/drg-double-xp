@@ -169,6 +169,8 @@ a { color: var(--amber); }
 }
 .tag.warning { border-color: #5b2a24; color: var(--danger); }
 .tag.season { border-color: #3d4a6b; color: #9fb3e8; }
+.tag.mutator { border-color: #4a3d6b; color: #c3b0f0; }
+.tag.mutator.double-xp { border-color: #5a4115; color: var(--amber); background: var(--amber-dark); }
 
 .live {
   display: inline-block;

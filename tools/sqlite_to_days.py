@@ -34,10 +34,13 @@ def main(argv=None):
             "length": row["length"],
             "complexity": row["complexity"],
             "warnings": json.loads(row["warnings"]),
+            "mutator": row["mutator"],
             "name": row["name"],
             "seasons": json.loads(row["seasons"]),
+            "seed": row["seed"],
+            "source_id": row["source_id"],
         })
-    # Archived days without any Double XP mission give an empty file, like collect_static.py.
+    # Archived days without any mission give an empty file, like collect_static.py.
     for (day,) in db.execute("SELECT day FROM archived_days"):
         by_day.setdefault(day, [])
 

@@ -1,11 +1,14 @@
-// Home page: the next Double XP mission + the live and upcoming ones,
-// loaded 24 hours at a time ("Load one more day" button).
+// Home page: the next mission matching the filters (Double XP by default) + the live and upcoming
+// ones, loaded 24 hours at a time ("Load one more day") and shown 100 at a time ("Show more missions").
 const form = document.getElementById('filters');
 // The default season is the current one, known once api/filters has been loaded.
-let defaultFilters = { mission: '', biome: '', length: '', season: '' };
+let defaultFilters = { mission: '', biome: '', mutator: DEFAULT_MUTATOR, length: '', season: '' };
 const nextDayButton = document.getElementById('next-day');
+const moreButton = document.getElementById('more-missions');
 const MAX_DAYS = 14; // limit of the API (api/upcoming)
+const SHOWN_STEP = 100; // missions added to the list by "Show more missions"
 let days = 1; // number of 24-hour periods loaded
+let shown = SHOWN_STEP; // number of missions shown in the list
 let knownUntil = null; // start of the last known mission (api/filters)
 
 function countdown(ms) {
@@ -24,21 +27,13 @@ function hasActiveFilter(filters) {
   return Object.values(filters).some(Boolean);
 }
 
-function matches(m, f) {
-  const missionTypes = multiChoice(f.mission);
-  const biomes = multiChoice(f.biome);
-  return (!missionTypes || missionTypes.includes(m.mission))
-    && (!biomes || biomes.includes(m.biome))
-    && (!f.length || m.length === Number(f.length))
-    && (!f.season || m.seasons.includes(f.season));
-}
-
 function showFeatured(m, now, filtered) {
   const zone = document.getElementById('featured');
+  const kind = missionKind(currentFilters());
   if (!m) {
     zone.innerHTML = filtered
-      ? `<p class="empty">No matching Double XP mission in the ${periodLabel()}.</p>`
-      : '<p class="empty">No known Double XP mission for now.</p>';
+      ? `<p class="empty">No matching ${kind} in the ${periodLabel()}.</p>`
+      : `<p class="empty">No known ${kind} for now.</p>`;
     return;
   }
   const start = new Date(m.start);
@@ -55,6 +50,7 @@ function showFeatured(m, now, filtered) {
 
 let missions = [];
 let loaded = false;
+let pendingRequest = 0;
 
 function periodLabel() {
   return days === 1 ? 'next 24 hours' : `next ${days} days`;
@@ -71,27 +67,35 @@ function refresh() {
   const now = new Date();
   const filters = currentFilters();
   const filtered = hasActiveFilter(filters);
-  // Keep the missions that have not ended yet and match the filters.
-  const active = missions.filter(
-    (m) => new Date(m.start).getTime() + SLOT_MS > now && matches(m, filters));
+  // The API already applied the filters; keep the missions that have not ended yet.
+  const active = missions.filter((m) => new Date(m.start).getTime() + SLOT_MS > now);
+  document.getElementById('next-title').textContent = `Next ${missionKind(filters)}`;
   showFeatured(active[0], now, filtered);
   const period = periodLabel();
   document.getElementById('upcoming-title').textContent = period[0].toUpperCase() + period.slice(1);
   // The list also contains the featured mission: it is the complete timeline.
   document.getElementById('upcoming').innerHTML = active.length
-    ? groupByDay(active, now)
+    ? groupByDay(active.slice(0, shown), now)
     : `<p class="empty">${filtered
       ? `No missions match these filters in the ${period}.`
       : `Nothing scheduled in the ${period}.`}</p>`;
-  nextDayButton.hidden = !canLoadMore();
+  const hidden = active.length - shown;
+  moreButton.hidden = hidden <= 0;
+  moreButton.textContent = `Show more missions (${hidden.toLocaleString('en-GB')} left)`;
+  // A further day only makes sense once everything already loaded is on screen.
+  nextDayButton.hidden = hidden > 0 || !canLoadMore();
 }
 
 async function load() {
+  const request = ++pendingRequest;
   nextDayButton.disabled = true;
+  const params = new URLSearchParams({ hours: days * 24, ...currentFilters() });
   try {
-    missions = (await readApi(`api/upcoming?hours=${days * 24}`)).missions;
+    const response = await readApi(`api/upcoming?${params}`);
+    if (request !== pendingRequest) return true; // a more recent load was started
+    missions = response.missions;
   } catch (e) {
-    if (!loaded) {
+    if (!loaded && request === pendingRequest) {
       document.getElementById('featured').innerHTML =
         '<p class="empty">Couldn\'t load missions. Please try again in a moment.</p>';
     }
@@ -102,6 +106,12 @@ async function load() {
   loaded = true;
   refresh();
   return true;
+}
+
+// New filters: back to the first missions of the period already loaded.
+function reload() {
+  shown = SHOWN_STEP;
+  load();
 }
 
 async function start() {
@@ -121,12 +131,17 @@ async function start() {
 form.addEventListener('change', (e) => {
   track(`filter-${filterName(e)}`);
   updateAddress(currentFilters(), defaultFilters);
-  refresh();
+  reload();
 });
 document.getElementById('reset').addEventListener('click', () => {
   track('filter-reset');
   applyFilters(form, defaultFilters);
   updateAddress(currentFilters(), defaultFilters);
+  reload();
+});
+moreButton.addEventListener('click', () => {
+  track('show-more-missions');
+  shown += SHOWN_STEP;
   refresh();
 });
 nextDayButton.addEventListener('click', async () => {

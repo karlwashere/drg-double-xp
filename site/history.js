@@ -1,4 +1,4 @@
-// History: search in the archive of the past Double XP missions.
+// History: search in the archive of the past missions (Double XP by default).
 const form = document.getElementById('filters');
 const resultsZone = document.getElementById('results');
 const summaryZone = document.getElementById('summary');
@@ -11,7 +11,7 @@ let total = 0;
 let pendingRequest = 0;
 
 function defaultValues() {
-  return { mission: '', biome: '', length: '', season: currentSeason };
+  return { mission: '', biome: '', mutator: DEFAULT_MUTATOR, length: '', season: currentSeason };
 }
 
 function currentFilters() {
@@ -35,6 +35,8 @@ async function search(more = false) {
     page = 1;
     updateAddress(filters, defaultValues());
   }
+  const kind = missionKind(filters);
+  document.getElementById('history-title').textContent = `${kind[0].toUpperCase()}${kind.slice(1)} history`;
   const request = ++pendingRequest;
   const params = new URLSearchParams({ ...filters, period: 'past', page });
   moreButton.disabled = true;

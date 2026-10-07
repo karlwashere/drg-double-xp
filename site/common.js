@@ -1,5 +1,12 @@
 // Shared rendering of the missions (upcoming and history pages).
 const SLOT_MS = 30 * 60 * 1000; // a mission stays available for 30 min
+const DEFAULT_MUTATOR = 'Double XP'; // the mutator selected by default in the filters
+const NO_MUTATOR = 'none'; // filter value for the missions without a mutator
+
+// "Double XP mission" when the filters only keep Double XP missions, "mission" otherwise.
+function missionKind(filters) {
+  return filters.mutator === DEFAULT_MUTATOR ? 'Double XP mission' : 'mission';
+}
 
 const CONFIG = window.DRG_CONFIG || {};
 
@@ -100,8 +107,8 @@ const CLOCK_DIALOG = `
   <dialog id="clock-dialog" class="dialog" aria-labelledby="clock-title">
     <h2 id="clock-title">Set your PC clock to this mission</h2>
     <p id="clock-target" class="target"></p>
-    <p>Deep Rock Galactic builds its mission list from your computer's clock. To play a Double XP
-      mission, your clock has to show that mission's time.</p>
+    <p>Deep Rock Galactic builds its mission list from your computer's clock. To play a mission
+      that isn't live right now, your clock has to show that mission's time.</p>
     <h3>How it works</h3>
     <p>A web page can't change your clock by itself, so this uses a small helper installed once on your PC
       (Windows only). <strong>Set clock</strong> asks the helper to change your Windows clock to the time above.
@@ -268,6 +275,8 @@ document.addEventListener('click', (e) => {
 function missionContent(m) {
   const warnings = m.warnings.map((w) => `<span class="tag warning">${escapeHtml(w)}</span>`).join('');
   const season = seasonTag(m.seasons);
+  const mutator = m.mutator
+    ? `<span class="tag mutator${m.mutator === DEFAULT_MUTATOR ? ' double-xp' : ''}">${escapeHtml(m.mutator)}</span>` : '';
   return `
     <p class="mission-title">${escapeHtml(m.mission)}</p>
     <div class="biome">${escapeHtml(m.biome)}</div>
@@ -277,7 +286,7 @@ function missionContent(m) {
       <span>${escapeHtml(m.secondary)}</span>
       <span class="code-name">${escapeHtml(m.name)}</span>
     </div>
-    ${warnings || season ? `<div class="tags">${warnings}${season}</div>` : ''}
+    ${mutator || warnings || season ? `<div class="tags">${mutator}${warnings}${season}</div>` : ''}
     ${clockButton(m)}`;
 }
 
@@ -318,19 +327,19 @@ function multiChoice(value) {
 
 function multiSummary(checked, total) {
   if (!checked.length || checked.length === total) return 'All';
-  if (checked.length === 1) return checked[0];
+  if (checked.length === 1) return checked[0].parentElement.textContent.trim(); // the label, e.g. "No mutator"
   return `${checked.length} selected`;
 }
 
 // Copies the state of the boxes into the hidden field and the summary.
 function readMulti(block) {
   const boxes = [...block.querySelectorAll('.multi-options input')];
-  const checked = boxes.filter((b) => b.checked).map((b) => b.value);
+  const checked = boxes.filter((b) => b.checked);
   const all = block.querySelector('[data-all]');
   all.checked = checked.length === boxes.length;
   all.indeterminate = checked.length > 0 && checked.length < boxes.length;
   block.querySelector('input[type=hidden]').value =
-    checked.length && checked.length < boxes.length ? checked.join(',') : '';
+    checked.length && checked.length < boxes.length ? checked.map((b) => b.value).join(',') : '';
   block.querySelector('summary').textContent = multiSummary(checked, boxes.length);
 }
 
@@ -341,10 +350,10 @@ function writeMulti(block, value) {
   readMulti(block);
 }
 
-function fillMulti(block, values) {
+function fillMulti(block, values, label = (v) => v) {
   const zone = block.querySelector('.multi-options');
   zone.innerHTML = values
-    .map((v) => `<label><input type="checkbox" value="${escapeHtml(v)}" checked> ${escapeHtml(v)}</label>`).join('');
+    .map((v) => `<label><input type="checkbox" value="${escapeHtml(v)}" checked> ${escapeHtml(label(v))}</label>`).join('');
   // Listened to on the block: the hidden field is up to date before the event reaches the form.
   block.addEventListener('change', (e) => {
     if (e.target.matches('[data-all]')) {
@@ -373,6 +382,8 @@ document.addEventListener('keydown', (e) => {
 function fillFilters(form, f) {
   fillMulti(form.elements.namedItem('mission').closest('.multi'), f.missions);
   fillMulti(form.elements.namedItem('biome').closest('.multi'), f.biomes);
+  fillMulti(form.elements.namedItem('mutator').closest('.multi'), [...f.mutators, NO_MUTATOR],
+    (v) => (v === NO_MUTATOR ? 'No mutator' : v));
   const season = form.elements.namedItem('season');
   for (const s of f.seasons.slice().reverse()) {
     season.add(new Option(s === f.current_season ? `Current (${s.slice(1)})` : seasonName(s), s));

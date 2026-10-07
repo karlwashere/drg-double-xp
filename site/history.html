@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>History · DRG Double XP</title>
-  <meta name="description" content="History of Deep Rock Galactic Double XP missions, with search.">
+  <meta name="description" content="History of Deep Rock Galactic missions (Double XP and every other mutator), with search.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -44,6 +44,17 @@
         </details>
         <input type="hidden" name="biome" value="">
       </div>
+      <div class="multi">
+        <span class="multi-title" id="mutator-title">Mutator</span>
+        <details>
+          <summary aria-describedby="mutator-title">All</summary>
+          <div class="multi-panel" role="group" aria-labelledby="mutator-title">
+            <label class="multi-all"><input type="checkbox" data-all checked> All</label>
+            <div class="multi-options"></div>
+          </div>
+        </details>
+        <input type="hidden" name="mutator" value="">
+      </div>
       <label>Length
         <select name="length">
           <option value="">All</option>
@@ -63,7 +74,7 @@
       <a href="history" aria-current="page">History</a>
     </nav>
 
-    <h1 class="eyebrow">Double XP mission history</h1>
+    <h1 id="history-title" class="eyebrow">Double XP mission history</h1>
 
     <p id="summary" class="summary" aria-live="polite"></p>
     <div id="results"><p class="loading">Loading…</p></div>

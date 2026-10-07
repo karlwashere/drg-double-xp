@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A small website that shows the **Double XP missions of [Deep Rock Galactic](https://www.deeprockgalactic.com/)**: what is live right now, what is coming in the next days, and a searchable archive of everything since May 2026. An optional Windows helper adds a **"Set PC clock"** button that sets your computer's clock to a mission's start time, so you can actually play it.
+A small website that shows the **missions of [Deep Rock Galactic](https://www.deeprockgalactic.com/)**, **Double XP** first but also every other mutator (*Gold Rush*, *Golden Bugs*, *Low Gravity*…): what is live right now, what is coming in the next days, and a searchable archive of every mission since May 2026. An optional Windows helper adds a **"Set PC clock"** button that sets your computer's clock to a mission's start time, so you can actually play it.
 
 | Upcoming | History |
 | --- | --- |
@@ -23,10 +23,10 @@ A small website that shows the **Double XP missions of [Deep Rock Galactic](http
 
 ## Features
 
-- **Upcoming**: the **next Double XP mission**, with a countdown (or *Live now* and when it ends), then the **timeline of the live and upcoming missions**, 24 hours at a time: *Load one more day* extends it, up to the end of the known forecast (14 days). All times are shown in **your device's time zone**.
-- **History**: every past Double XP mission archived since 2026-05-08, newest first, with a *Show more* button (50 per page).
-- **Filters shared by both tabs**, at the top of the page: mission type and biome as **checkbox lists** (tick only the ones you want; no box ticked means all), length and season. The season defaults to the current one, **deduced from the data**. Switching between *Upcoming* and *History* keeps the filters. They live in the address bar (`?biome=Salt+Pits%2CMagma+Core&season=s6`), so a search can be shared or bookmarked, and they are remembered by your browser for your next visit.
-- **Details on every mission**: biome (colour-coded), length and complexity gauges, secondary objective, code name, mission warnings (*Elite Threat*, *Low Oxygen*…) and a *Season N only* tag for missions that only exist for some seasons.
+- **Upcoming**: the **next mission matching your filters** (a Double XP mission by default), with a countdown (or *Live now* and when it ends), then the **timeline of the live and upcoming missions**, 24 hours at a time: *Load one more day* extends it, up to the end of the known forecast (14 days). Long lists are shown 100 missions at a time (*Show more missions*). All times are shown in **your device's time zone**.
+- **History**: every past mission archived since 2026-05-08 (over 1,200 a day, all mutators), newest first, with a *Show more* button (50 per page).
+- **Filters shared by both tabs**, at the top of the page: mission type, biome and **mutator** as **checkbox lists** (tick only the ones you want; no box ticked means all), length and season. The mutator list includes *No mutator*, and defaults to **Double XP**; the season defaults to the current one, **deduced from the data**. Switching between *Upcoming* and *History* keeps the filters. They live in the address bar (`?biome=Salt+Pits%2CMagma+Core&season=s6`), so a search can be shared or bookmarked, and they are remembered by your browser for your next visit.
+- **Details on every mission**: biome (colour-coded), length and complexity gauges, secondary objective, code name, mutator, mission warnings (*Elite Threat*, *Low Oxygen*…) and a *Season N only* tag for missions that only exist for some seasons.
 - **Set PC clock**: a button on every mission that opens a dialog (what it does, how to install the helper, *Cancel* / *Set clock*) and, once confirmed, sets your Windows clock to that mission's start time. See [the helper](#the-pc-clock-helper-windows).
 - **Two ways to host it**, from the same code: static on **GitHub Pages**, or on **your own server** with a tiny Python API and a SQLite database.
 - **Boring technology on purpose**: no framework, no bundler, no runtime dependency. Plain HTML/CSS/JavaScript in the browser and the Python standard library for the tools.

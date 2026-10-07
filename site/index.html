@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DRG Double XP</title>
-  <meta name="description" content="Deep Rock Galactic Double XP missions: upcoming and history.">
+  <meta name="description" content="Deep Rock Galactic missions: Double XP and every other mutator, upcoming and history.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -44,6 +44,17 @@
         </details>
         <input type="hidden" name="biome" value="">
       </div>
+      <div class="multi">
+        <span class="multi-title" id="mutator-title">Mutator</span>
+        <details>
+          <summary aria-describedby="mutator-title">All</summary>
+          <div class="multi-panel" role="group" aria-labelledby="mutator-title">
+            <label class="multi-all"><input type="checkbox" data-all checked> All</label>
+            <div class="multi-options"></div>
+          </div>
+        </details>
+        <input type="hidden" name="mutator" value="">
+      </div>
       <label>Length
         <select name="length">
           <option value="">All</option>
@@ -74,6 +85,7 @@
       <h2 id="upcoming-title" class="section-title">Next 24 hours</h2>
       <div id="upcoming"></div>
       <div class="pagination">
+        <button type="button" id="more-missions" class="button" hidden>Show more missions</button>
         <button type="button" id="next-day" class="button" hidden>Load one more day</button>
       </div>
     </section>

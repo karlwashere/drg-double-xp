@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Archives the Double XP missions from doublexp.net into a SQLite database.
+"""Archives the missions from doublexp.net (all of them, whatever their mutator) into a SQLite database.
 
 - First run: loads the whole available history (since ARCHIVE_START).
 - Later runs: reloads yesterday and the upcoming days (forecasts can change after a game
   update); past days that are already archived are never downloaded again.
+- A database made by an older version, which only kept the Double XP missions, is upgraded in
+  place: new columns are added and every day is downloaded again to get the other missions.
 
 Usage: collect.py [database_path]
 """
@@ -33,12 +35,15 @@ CREATE TABLE IF NOT EXISTS missions (
     warnings    TEXT NOT NULL,     -- JSON list
     name        TEXT NOT NULL,     -- code name, not unique: two seasons can share it
     seasons     TEXT NOT NULL,     -- JSON list, e.g. ["s0","s1","s3","s6"]
-    seed        INTEGER NOT NULL   -- generation seed, not unique either
+    seed        INTEGER NOT NULL,  -- generation seed, not unique either
+    mutator     TEXT,              -- "Double XP", "Gold Rush"... NULL when the mission has none
+    source_id   INTEGER            -- the mission's id at doublexp.net
 );
--- No reliable natural key (name and seed can be shared between seasons): uniqueness comes
--- from every day always being replaced as a whole.
+-- Uniqueness comes from every day always being replaced as a whole. Within a day, rows keep the
+-- order of the source file (id), which breaks ties when sorting.
 CREATE INDEX IF NOT EXISTS missions_start ON missions (start);
 CREATE INDEX IF NOT EXISTS missions_day ON missions (day);
+CREATE INDEX IF NOT EXISTS missions_mutator_start ON missions (mutator, start);
 
 CREATE TABLE IF NOT EXISTS archived_days (
     day           TEXT PRIMARY KEY,
@@ -46,6 +51,23 @@ CREATE TABLE IF NOT EXISTS archived_days (
     mission_count INTEGER NOT NULL
 );
 """
+
+def upgrade_schema(db):
+    """Upgrades a database that only kept the Double XP missions (no mutator column).
+
+    Its rows are all Double XP missions, so they are marked as such right away (the site keeps
+    working), and every day is forgotten as "archived" so that the next run downloads them all again.
+    """
+    columns = {row[1] for row in db.execute("PRAGMA table_info(missions)")}
+    if not columns or "mutator" in columns:
+        return False
+    with db:
+        db.execute("ALTER TABLE missions ADD COLUMN mutator TEXT")
+        db.execute("ALTER TABLE missions ADD COLUMN source_id INTEGER")
+        db.execute("UPDATE missions SET mutator = 'Double XP'")
+        db.execute("DELETE FROM archived_days")
+    return True
+
 
 def download(day):
     request = urllib.request.Request(SOURCE.format(day=day), headers={"User-Agent": "drg-double-xp"})
@@ -58,14 +80,14 @@ def download(day):
         raise
 
 
-def double_xp(data):
+def all_missions(data):
+    """(slot start, biome, mission) for every mission of a source file, in the file's order."""
     for start, slot in data.items():
         if not isinstance(slot, dict) or "Biomes" not in slot:
             continue  # auxiliary keys: dailyDeal, ver
         for biome, missions in slot["Biomes"].items():
             for m in missions:
-                if m.get("MissionMutator") == "Double XP":
-                    yield start, biome, m
+                yield start, biome, m
 
 
 def archive_day(db, day, data):
@@ -75,14 +97,15 @@ def archive_day(db, day, data):
             int(m["Length"]), int(m["Complexity"]),
             json.dumps(m.get("MissionWarnings") or [], ensure_ascii=False),
             m["CodeName"], json.dumps(m.get("included_in") or []), int(m["Seed"]),
+            m.get("MissionMutator") or None, m.get("id"),
         )
-        for start, biome, m in double_xp(data)
+        for start, biome, m in all_missions(data)
     ]
     with db:  # one transaction per day: a day is never half archived
         db.execute("DELETE FROM missions WHERE day = ?", (day,))
         db.executemany(
             "INSERT INTO missions (start, day, biome, mission, secondary, length, complexity,"
-            " warnings, name, seasons, seed) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            " warnings, name, seasons, seed, mutator, source_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             rows,
         )
         db.execute(
@@ -96,6 +119,8 @@ def main():
     path = sys.argv[1] if len(sys.argv) > 1 else "drg.db"
     db = sqlite3.connect(path)
     db.execute("PRAGMA journal_mode=WAL")
+    if upgrade_schema(db):
+        print("Database upgraded to keep every mission: all days are downloaded again")
     db.executescript(SCHEMA)
 
     today = datetime.now(timezone.utc).date()
@@ -117,7 +142,7 @@ def main():
         day += timedelta(days=1)
 
     count = db.execute("SELECT COUNT(*) FROM missions").fetchone()[0]
-    print(f"{loaded} days loaded ({total} missions); {count} Double XP missions in the database")
+    print(f"{loaded} days loaded ({total} missions); {count} missions in the database")
     db.close()
 
 

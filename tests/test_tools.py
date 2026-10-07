@@ -33,12 +33,14 @@ SOURCE = {
                  "Length": 2, "Complexity": 3, "MissionWarnings": ["Pit Jaw Colony"], "CodeName": "Gutless Enclosure",
                  "included_in": ["s0", "s6"], "Seed": 11},
                 {"MissionMutator": "Other mutator", "PrimaryObjective": "Deep Scan", "SecondaryObjective": "Ebonuts",
-                 "Length": 1, "Complexity": 1, "CodeName": "Ignored", "Seed": 12},
+                 "Length": 1, "Complexity": 1, "CodeName": "Other One", "Seed": 12},
             ],
             "Azure Weald": [
                 {"MissionMutator": "Double XP", "PrimaryObjective": "Egg Hunt", "SecondaryObjective": "Fossils",
                  "Length": 3, "Complexity": 2, "MissionWarnings": [], "CodeName": "Duplicitous Bottom",
-                 "included_in": ["s3"], "Seed": 13},
+                 "included_in": ["s3"], "Seed": 13, "id": 7},
+                {"PrimaryObjective": "Mining Expedition", "SecondaryObjective": "Fossils",  # no mutator
+                 "Length": 1, "Complexity": 1, "CodeName": "Plain One", "included_in": ["s0"], "Seed": 15, "id": 8},
             ],
         }
     },
@@ -57,20 +59,25 @@ SOURCE = {
 
 
 class DayMissions(unittest.TestCase):
-    def test_keeps_only_double_xp_and_ignores_auxiliary_keys(self):
-        names = [m["CodeName"] for _, _, m in collect.double_xp(SOURCE)]
-        self.assertEqual(sorted(names), ["Duplicitous Bottom", "Gutless Enclosure", "No warnings"])
+    def test_keeps_every_mission_and_ignores_auxiliary_keys(self):
+        names = [m["CodeName"] for _, _, m in collect.all_missions(SOURCE)]
+        self.assertEqual(sorted(names), ["Duplicitous Bottom", "Gutless Enclosure", "No warnings", "Other One", "Plain One"])
 
     def test_format_and_order_by_slot_then_biome(self):
         rows = collect_static.day_missions(SOURCE)
-        self.assertEqual([(m["start"], m["biome"]) for m in rows], [
-            ("2026-10-06T16:30:00Z", "Magma Core"),
-            ("2026-10-06T17:00:00Z", "Azure Weald"),
-            ("2026-10-06T17:00:00Z", "Salt Pits"),
+        self.assertEqual([(m["start"], m["biome"], m["name"]) for m in rows], [
+            ("2026-10-06T16:30:00Z", "Magma Core", "No warnings"),
+            ("2026-10-06T17:00:00Z", "Azure Weald", "Duplicitous Bottom"),  # same slot and biome:
+            ("2026-10-06T17:00:00Z", "Azure Weald", "Plain One"),           # the file's order is kept
+            ("2026-10-06T17:00:00Z", "Salt Pits", "Gutless Enclosure"),
+            ("2026-10-06T17:00:00Z", "Salt Pits", "Other One"),
         ])
-        self.assertEqual(list(rows[2]), [
-            "start", "biome", "mission", "secondary", "length", "complexity", "warnings", "name", "seasons"])
-        self.assertEqual(rows[2]["warnings"], ["Pit Jaw Colony"])
+        self.assertEqual(list(rows[3]), [
+            "start", "biome", "mission", "secondary", "length", "complexity", "warnings", "mutator", "name",
+            "seasons", "seed", "source_id"])
+        self.assertEqual(rows[3]["warnings"], ["Pit Jaw Colony"])
+        self.assertEqual([m["mutator"] for m in rows], ["Double XP", "Double XP", None, "Double XP", "Other mutator"])
+        self.assertEqual((rows[1]["seed"], rows[1]["source_id"]), (13, 7))
         self.assertEqual(rows[0]["warnings"], [])  # MissionWarnings missing or null -> empty list
         self.assertEqual(rows[0]["seasons"], [])   # included_in missing or null -> empty list
 
@@ -94,7 +101,42 @@ class DayFiles(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             collect_static.write_day(tmp, "2026-10-06", collect_static.day_missions(SOURCE))
             text = (Path(tmp) / "2026-10-06.json").read_text(encoding="utf-8")
-            self.assertEqual(len(text.splitlines()), 3 + 2)  # 3 missions + brackets
+            self.assertEqual(len(text.splitlines()), 5 + 2)  # 5 missions + brackets
+
+    def test_old_format_is_downloaded_again(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "2026-10-06.json"
+            path.write_text('[\n{"start":"2026-10-06T16:30:00Z","biome":"Magma Core"}\n]\n', encoding="utf-8")
+            self.assertFalse(collect_static.up_to_date(path))  # Double XP only, no mutator field
+            collect_static.write_day(tmp, "2026-10-06", collect_static.day_missions(SOURCE))
+            self.assertTrue(collect_static.up_to_date(path))
+            self.assertFalse(collect_static.up_to_date(Path(tmp) / "missing.json"))
+
+
+class SchemaUpgrade(unittest.TestCase):
+    OLD_SCHEMA = collect.SCHEMA.split("    seed        INTEGER NOT NULL,")[0] + """    seed        INTEGER NOT NULL
+);
+CREATE TABLE archived_days (day TEXT PRIMARY KEY, loaded_at TEXT NOT NULL, mission_count INTEGER NOT NULL);
+"""
+
+    def test_double_xp_only_database_is_upgraded(self):
+        db = sqlite3.connect(":memory:")
+        db.executescript(self.OLD_SCHEMA)
+        db.execute("INSERT INTO missions (start, day, biome, mission, secondary, length, complexity, warnings,"
+                   " name, seasons, seed) VALUES ('2026-10-06T17:00:00Z', '2026-10-06', 'Salt Pits', 'Egg Hunt',"
+                   " 'x', 1, 1, '[]', 'n', '[]', 1)")
+        db.execute("INSERT INTO archived_days VALUES ('2026-10-06', 'now', 1)")
+        self.assertTrue(collect.upgrade_schema(db))
+        db.executescript(collect.SCHEMA)  # the new index can now be created
+        self.assertEqual(db.execute("SELECT mutator FROM missions").fetchall(), [("Double XP",)])  # still shown
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM archived_days").fetchone()[0], 0)  # all reloaded
+        self.assertFalse(collect.upgrade_schema(db))  # second call: nothing to do
+
+    def test_new_database_untouched(self):
+        db = sqlite3.connect(":memory:")
+        self.assertFalse(collect.upgrade_schema(db))
+        db.executescript(collect.SCHEMA)
+        self.assertFalse(collect.upgrade_schema(db))
 
 
 class FromSqlite(unittest.TestCase):
@@ -123,7 +165,8 @@ class StaticSiteBuild(unittest.TestCase):
         days.mkdir()
         collect_static.write_day(days, "2026-10-07", [
             {"start": "2026-10-07T01:00:00Z", "biome": "Salt Pits", "mission": "Egg Hunt", "secondary": "x",
-             "length": 1, "complexity": 1, "warnings": [], "name": "n", "seasons": ["s6"]}])
+             "length": 1, "complexity": 1, "warnings": [], "mutator": None, "name": "n", "seasons": ["s6"],
+             "seed": 1, "source_id": 1}])
         collect_static.write_day(days, "2026-10-06", collect_static.day_missions(SOURCE))
         site = tmp / "site"
         site.mkdir()
@@ -143,9 +186,31 @@ class StaticSiteBuild(unittest.TestCase):
             config = (dist / "config.js").read_text(encoding="utf-8")
             self.assertIn('"mode": "static"', config)
             self.assertIn('"currentSeason": "s7"', config)
-            missions = json.loads((dist / "data" / "missions.json").read_text(encoding="utf-8"))["missions"]
-            self.assertEqual([m["start"] for m in missions], sorted(m["start"] for m in missions))
-            self.assertEqual(len(missions), 4)  # the 3 of SOURCE + the one of the 7th, in chronological order
+            index = json.loads((dist / "data" / "index.json").read_text(encoding="utf-8"))
+            self.assertEqual(index["months"], [{"month": "2026-10", "count": 6}])  # the 5 of SOURCE + the 7th's
+            self.assertEqual(index["mutators"], ["Double XP", "Other mutator"])
+            self.assertEqual((index["archive_since"], index["known_until"]), ("2026-10-06T16:30:00Z", "2026-10-07T01:00:00Z"))
+
+    def test_month_file_round_trip(self):
+        """Decoding a month file (like static-api.js does) gives back the missions, in the same order."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            days, site = self.prepare(tmp)
+            with contextlib.redirect_stdout(io.StringIO()):
+                build_static.main(["--days", str(days), "--site", str(site), "--output", str(tmp / "dist")])
+            month = json.loads((tmp / "dist" / "data" / "missions-2026-10.json").read_text(encoding="utf-8"))
+            d = month["dictionaries"]
+            decoded = [{
+                "start": (datetime(2026, 10, 1, tzinfo=timezone.utc) + timedelta(minutes=r[0])).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "biome": d["biome"][r[1]], "mission": d["mission"][r[2]], "secondary": d["secondary"][r[3]],
+                "length": r[4], "complexity": r[5], "warnings": [d["warning"][w] for w in r[6]],
+                "mutator": None if r[7] == -1 else d["mutator"][r[7]], "name": d["name"][r[8]],
+                "seasons": [d["season"][s] for s in r[9]],
+            } for r in month["rows"]]
+            expected = build_static.read_missions(days)
+            for m in expected:
+                del m["seed"], m["source_id"]
+            self.assertEqual(decoded, expected)
 
     def test_season_deduced_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -211,6 +276,7 @@ class Api(unittest.TestCase):
             {"MissionMutator": "Double XP", "PrimaryObjective": "Deep Scan", "SecondaryObjective": "x",
              "Length": 1, "Complexity": 1, "CodeName": "Recent", "included_in": ["s0", "s7"], "Seed": 1}]}}})
         db.close()
+        api._filters_cache["value"] = None
         patches = [mock.patch.object(api, "DB_PATH", str(path)), mock.patch.object(api, "FORCED_SEASON", "")]
         for p in patches:
             p.start()
@@ -222,13 +288,31 @@ class Api(unittest.TestCase):
         return sorted(m["biome"] for m in result["missions"])
 
     def test_several_biomes(self):
-        self.assertEqual(self.biomes(biome="Salt Pits,Magma Core"), ["Magma Core", "Salt Pits"])
-        self.assertEqual(self.biomes(biome="Salt Pits"), ["Salt Pits"])
-        self.assertEqual(len(self.biomes(biome="")), 4)  # empty: no filter
+        self.assertEqual(self.biomes(biome="Salt Pits,Magma Core"), ["Magma Core", "Salt Pits", "Salt Pits"])
+        self.assertEqual(self.biomes(biome="Salt Pits"), ["Salt Pits", "Salt Pits"])
+        self.assertEqual(len(self.biomes(biome="")), 6)  # empty: no filter
 
     def test_several_mission_types_combined_with_a_biome(self):
         self.assertEqual(self.biomes(mission="Egg Hunt,Elimination"), ["Azure Weald", "Magma Core"])
         self.assertEqual(self.biomes(mission="Egg Hunt,Elimination", biome="Magma Core"), ["Magma Core"])
+
+    def test_mutators(self):
+        self.assertEqual(self.biomes(mutator="Double XP"), ["Azure Weald", "Hollow Bough", "Magma Core", "Salt Pits"])
+        self.assertEqual(self.biomes(mutator="none"), ["Azure Weald"])
+        self.assertEqual(self.biomes(mutator="none,Other mutator"), ["Azure Weald", "Salt Pits"])
+        self.assertEqual(self.biomes(mutator="Unknown"), [])
+        self.assertEqual(api.filters({})["mutators"], ["Double XP", "Other mutator"])
+
+    def test_upcoming_is_filtered(self):
+        self.assertEqual([m["name"] for m in api.upcoming({"mutator": "Double XP"})["missions"]], ["Recent"])
+        self.assertEqual(api.upcoming({"mutator": "none"})["missions"], [])
+        self.assertEqual(api.upcoming({"biome": "Hollow Bough", "season": "s7"})["missions"][0]["mutator"], "Double XP")
+
+    def test_ties_keep_the_source_order(self):
+        past = [m["name"] for m in api.search({"period": "all", "biome": "Azure Weald"})["missions"]]
+        self.assertEqual(past, ["Plain One", "Duplicitous Bottom"])  # newest first: reverse source order
+        future = [m["name"] for m in api.search({"period": "upcoming"})["missions"]]
+        self.assertEqual(future, ["Recent"])
 
     def test_current_season_deduced_from_recent_missions(self):
         self.assertEqual(api.filters({})["current_season"], "s7")
