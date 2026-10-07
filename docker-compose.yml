@@ -1,0 +1,24 @@
+services:
+  drg-site:
+    image: nginx:1.27-alpine
+    container_name: drg-site
+    restart: unless-stopped
+    ports:
+      - "8010:80"
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - drg-api
+
+  drg-api:
+    image: python:3.12-alpine
+    container_name: drg-api
+    restart: unless-stopped
+    command: python /app/api.py
+    environment:
+      DRG_DB: /data/drg.db
+      # DRG_CURRENT_SEASON: s7   # optional: force the current season (deduced from the data otherwise)
+    volumes:
+      - ./api:/app:ro
+      - ./data:/data

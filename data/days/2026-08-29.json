@@ -1,0 +1,17 @@
+[
+{"start":"2026-08-29T12:00:00Z","biome":"Glacial Strata","mission":"Elimination","secondary":"Ebonuts","length":2,"complexity":2,"warnings":["Rival Presence"],"name":"Lucky Hunt","seasons":["s1"]},
+{"start":"2026-08-29T14:30:00Z","biome":"Hollow Bough","mission":"Industrial Sabotage","secondary":"ApocaBlooms","length":2,"complexity":2,"warnings":["Exploder Infestation"],"name":"Rancid Hold","seasons":["s0","s1","s3","s6"]},
+{"start":"2026-08-29T15:00:00Z","biome":"Azure Weald","mission":"Elimination","secondary":"Boolo Caps","length":2,"complexity":2,"warnings":[],"name":"Mighty Bottom","seasons":["s0","s1","s3","s6"]},
+{"start":"2026-08-29T15:00:00Z","biome":"Radioactive Exclusion Zone","mission":"Elimination","secondary":"Bha Barnacles","length":3,"complexity":3,"warnings":[],"name":"Bedazzled Field","seasons":["s0","s1","s3","s6"]},
+{"start":"2026-08-29T18:30:00Z","biome":"Glacial Strata","mission":"Deep Scan","secondary":"ApocaBlooms","length":1,"complexity":2,"warnings":["Shield Disruption"],"name":"Frightened Arm","seasons":["s0","s1","s3","s6"]},
+{"start":"2026-08-29T19:30:00Z","biome":"Azure Weald","mission":"Heavy Excavation","secondary":"Fester Fleas","length":2,"complexity":2,"warnings":["Scrab Nesting Grounds"],"name":"Pure Mork","seasons":["s6"]},
+{"start":"2026-08-29T19:30:00Z","biome":"Dense Biozone","mission":"On-Site Refining","secondary":"Fossils","length":2,"complexity":2,"warnings":["Pit Jaw Colony"],"name":"Divine Pitfall","seasons":["s6"]},
+{"start":"2026-08-29T20:00:00Z","biome":"Hollow Bough","mission":"Mining Expedition","secondary":"Fester Fleas","length":2,"complexity":2,"warnings":["Lithophage Outbreak"],"name":"Sunken Doom","seasons":["s3"]},
+{"start":"2026-08-29T20:00:00Z","biome":"Salt Pits","mission":"Deep Scan","secondary":"Fossils","length":2,"complexity":3,"warnings":["Rival Presence"],"name":"Sunken Doom","seasons":["s1"]},
+{"start":"2026-08-29T20:30:00Z","biome":"Glacial Strata","mission":"Escort Duty","secondary":"Ebonuts","length":3,"complexity":3,"warnings":["Pit Jaw Colony"],"name":"Blunt Needle","seasons":["s6"]},
+{"start":"2026-08-29T20:30:00Z","biome":"Sandblasted Corridors","mission":"Elimination","secondary":"Ebonuts","length":2,"complexity":2,"warnings":["Lithophage Outbreak"],"name":"Endless Interest","seasons":["s3"]},
+{"start":"2026-08-29T21:00:00Z","biome":"Magma Core","mission":"Industrial Sabotage","secondary":"Boolo Caps","length":2,"complexity":2,"warnings":["Swarmageddon"],"name":"Pale End","seasons":["s0","s1","s3","s6"]},
+{"start":"2026-08-29T23:00:00Z","biome":"Fungus Bogs","mission":"Point Extraction","secondary":"Gunk Seeds","length":3,"complexity":3,"warnings":["Regenerative Bugs"],"name":"Loser's Tunnel","seasons":["s0","s1","s3","s6"]},
+{"start":"2026-08-29T23:00:00Z","biome":"Ossuary Depths","mission":"Elimination","secondary":"ApocaBlooms","length":3,"complexity":3,"warnings":["Lithophage Outbreak"],"name":"Raging Hate","seasons":["s3"]},
+{"start":"2026-08-29T23:30:00Z","biome":"Salt Pits","mission":"Heavy Excavation","secondary":"Boolo Caps","length":3,"complexity":2,"warnings":[],"name":"Solid Wasteland","seasons":["s0","s1","s3","s6"]}
+]

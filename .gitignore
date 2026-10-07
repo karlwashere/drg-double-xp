@@ -1,0 +1,15 @@
+# Static site build output (GitHub Pages)
+dist/
+
+# SQLite database of the server hosting ("api" mode): it can be rebuilt with tools/collect.py
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Python
+__pycache__/
+*.pyc
+
+# Misc
+.env
+*.log

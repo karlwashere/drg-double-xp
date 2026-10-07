@@ -1,0 +1,70 @@
+name: Pages
+
+# Updates the data, then (re)deploys the static site to GitHub Pages:
+#   - on every change of the main branch;
+#   - every hour (upcoming missions can change);
+#   - on demand (Actions tab > Pages > Run workflow).
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # to commit the new data/days/*.json files
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Collect the missions (yesterday and the next 14 days)
+        run: python tools/collect_static.py data/days
+
+      - name: Commit the changed data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/days
+          if git diff --cached --quiet; then
+            echo "No data changed."
+          else
+            git commit -m "Data: update of $(date -u '+%Y-%m-%d %H:%M') UTC"
+            git pull --rebase
+            git push
+          fi
+
+      - name: Build the site
+        env:
+          # Optional repository variable (Settings > Secrets and variables > Actions > Variables) to force
+          # the current season. When it is not set, the site deduces it from the data.
+          DRG_CURRENT_SEASON: ${{ vars.DRG_CURRENT_SEASON }}
+        run: python tools/build_static.py --output dist
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

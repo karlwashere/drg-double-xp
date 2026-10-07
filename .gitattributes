@@ -1,0 +1,4 @@
+# Same line endings everywhere: the data files are compared byte for byte by tools/collect_static.py
+* text=auto eol=lf
+*.png binary
+*.jpg binary

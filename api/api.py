@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+"""Read-only API on the Double XP missions database.
+
+GET /api/upcoming?hours=24   missions not finished yet, starting within the next N hours
+GET /api/filters             possible filter values + current season
+GET /api/missions?mission=&biome=&length=&season=&period=&page=
+
+mission and biome accept several values separated by commas.
+"""
+import json
+import os
+import sqlite3
+from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
+
+DB_PATH = os.environ.get("DRG_DB", "/data/drg.db")
+# Forced current season; when empty it is deduced from the data (see current_season).
+FORCED_SEASON = os.environ.get("DRG_CURRENT_SEASON", "")
+SLOT_DURATION = timedelta(minutes=30)
+PER_PAGE = 50
+
+
+@contextmanager
+def connection():
+    db = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+    db.row_factory = sqlite3.Row
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def iso(dt):
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def as_dict(row):
+    m = dict(row)
+    m["warnings"] = json.loads(m["warnings"])
+    m["seasons"] = json.loads(m["seasons"])
+    del m["id"], m["day"]
+    return m
+
+
+COLUMNS = "id, start, day, biome, mission, secondary, length, complexity, warnings, name, seasons"
+
+
+def upcoming(params):
+    hours = min(int(params.get("hours", "24")), 24 * 14)
+    now = datetime.now(timezone.utc)
+    with connection() as db:
+        rows = db.execute(
+            f"SELECT {COLUMNS} FROM missions WHERE start > ? AND start <= ? ORDER BY start, biome",
+            (iso(now - SLOT_DURATION), iso(now + timedelta(hours=hours))),
+        ).fetchall()
+    return {"missions": [as_dict(r) for r in rows]}
+
+
+def current_season(db):
+    """Most recent season found in the missions of the last two days and the upcoming ones."""
+    if FORCED_SEASON:
+        return FORCED_SEASON
+    since = iso(datetime.now(timezone.utc) - timedelta(days=2))
+    seasons = [r[0] for r in db.execute(
+        "SELECT DISTINCT j.value FROM missions, json_each(missions.seasons) j WHERE start >= ?", (since,))]
+    seasons = [s for s in seasons if s[1:].isdigit()]
+    return max(seasons, key=lambda s: int(s[1:]), default="s0")
+
+
+def filters(_params):
+    with connection() as db:
+        missions = [r[0] for r in db.execute("SELECT DISTINCT mission FROM missions ORDER BY 1")]
+        biomes = [r[0] for r in db.execute("SELECT DISTINCT biome FROM missions ORDER BY 1")]
+        seasons = [r[0] for r in db.execute(
+            "SELECT DISTINCT j.value FROM missions, json_each(missions.seasons) j ORDER BY 1")]
+        first, last = db.execute("SELECT MIN(start), MAX(start) FROM missions").fetchone()
+        season = current_season(db)
+    return {"missions": missions, "biomes": biomes, "seasons": seasons,
+            "current_season": season, "archive_since": first, "known_until": last}
+
+
+def search(params):
+    conditions, values = [], []
+    for key in ("mission", "biome"):  # comma-separated lists
+        choice = [v for v in params.get(key, "").split(",") if v]
+        if choice:
+            conditions.append(f"{key} IN ({','.join('?' * len(choice))})")
+            values.extend(choice)
+    if params.get("length"):
+        conditions.append("length = ?")
+        values.append(int(params["length"]))
+    if params.get("season"):
+        conditions.append("EXISTS (SELECT 1 FROM json_each(missions.seasons) WHERE value = ?)")
+        values.append(params["season"])
+
+    now = iso(datetime.now(timezone.utc))
+    period = params.get("period", "past")
+    if period == "past":
+        conditions.append("start <= ?")
+        values.append(now)
+        order = "start DESC"
+    elif period == "upcoming":
+        conditions.append("start > ?")
+        values.append(now)
+        order = "start ASC"
+    else:
+        order = "start DESC"
+
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    page = max(1, int(params.get("page", "1")))
+    with connection() as db:
+        total = db.execute(f"SELECT COUNT(*) FROM missions {where}", values).fetchone()[0]
+        rows = db.execute(
+            f"SELECT {COLUMNS} FROM missions {where} ORDER BY {order}, biome LIMIT ? OFFSET ?",
+            values + [PER_PAGE, (page - 1) * PER_PAGE],
+        ).fetchall()
+    return {"total": total, "page": page, "per_page": PER_PAGE, "missions": [as_dict(r) for r in rows]}
+
+
+ROUTES = {"/api/upcoming": upcoming, "/api/filters": filters, "/api/missions": search}
+
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        url = urlparse(self.path)
+        action = ROUTES.get(url.path)
+        if not action:
+            return self.respond(404, {"error": "not found"})
+        params = {k: v[0] for k, v in parse_qs(url.query).items()}
+        try:
+            self.respond(200, action(params))
+        except ValueError:
+            self.respond(400, {"error": "invalid parameter"})
+        except Exception as e:
+            self.log_error("error: %r", e)
+            self.respond(500, {"error": "internal error"})
+
+    def respond(self, code, content):
+        body = json.dumps(content, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(body)
+
+
+if __name__ == "__main__":
+    ThreadingHTTPServer(("0.0.0.0", 8000), Handler).serve_forever()
