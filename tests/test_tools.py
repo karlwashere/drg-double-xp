@@ -6,6 +6,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import sqlite3
 import sys
 import tempfile
@@ -191,6 +192,29 @@ class StaticSiteBuild(unittest.TestCase):
             self.assertEqual(index["mutators"], ["Double XP", "Other mutator"])
             self.assertEqual(index["warnings"], ["Pit Jaw Colony"])
             self.assertEqual((index["archive_since"], index["known_until"]), ("2026-10-06T16:30:00Z", "2026-10-07T01:00:00Z"))
+
+    def test_scripts_and_styles_are_versioned(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            days, site = self.prepare(tmp)
+            (site / "index.html").write_text('<link rel="stylesheet" href="styles.css"><script src="config.js"></script>'
+                                             '<script src="app.js"></script><script src="https://cdn.example/x.js"></script>'
+                                             '<a href="history">History</a>', encoding="utf-8")
+            (site / "styles.css").write_text("body{}", encoding="utf-8")
+            (site / "app.js").write_text("// v1", encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()):
+                build_static.main(["--days", str(days), "--site", str(site), "--output", str(tmp / "dist")])
+            page = (tmp / "dist" / "index.html").read_text(encoding="utf-8")
+            self.assertRegex(page, r'href="styles\.css\?v=[0-9a-f]{10}"')
+            self.assertRegex(page, r'src="config\.js\?v=[0-9a-f]{10}"')
+            self.assertIn('src="https://cdn.example/x.js"', page)  # external: untouched
+            self.assertIn('href="history"', page)  # links between pages: untouched
+            first = re.search(r'app\.js\?v=(\w+)', page).group(1)
+            (site / "app.js").write_text("// v2", encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()):
+                build_static.main(["--days", str(days), "--site", str(site), "--output", str(tmp / "dist")])
+            page = (tmp / "dist" / "index.html").read_text(encoding="utf-8")
+            self.assertNotEqual(re.search(r'app\.js\?v=(\w+)', page).group(1), first)  # new content, new version
 
     def test_month_file_round_trip(self):
         """Decoding a month file (like static-api.js does) gives back the missions, in the same order."""

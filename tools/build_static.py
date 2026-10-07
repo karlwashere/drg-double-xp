@@ -4,6 +4,8 @@
 Produced content:
   - a copy of site/;
   - config.js in "static" mode (current season, README link, visit statistics);
+  - in the pages, a version on every local script and stylesheet (app.js?v=1a2b3c4d5e): GitHub Pages
+    lets browsers keep files for 10 minutes, and a new page must never run with an old script;
   - the missions of data/days/*.json, in a compact format split by month:
       data/index.json            months available, filter values, archive bounds;
       data/missions-YYYY-MM.json one file per month (see month_file), loaded on demand by static-api.js.
@@ -15,6 +17,7 @@ The "About" link points to the README of the repository being built (GITHUB_REPO
 Actions), or to --readme-url. Visit statistics are enabled by a GoatCounter site code (DRG_GOATCOUNTER).
 """
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -83,6 +86,22 @@ def write_data(folder, missions):
     return index
 
 
+def add_versions(output):
+    """Adds ?v=<content hash> to the local scripts and stylesheets referenced by the pages, so that a
+    browser never mixes a fresh page with files it cached from a previous version."""
+    def versioned(match):
+        attribute, name = match.group(1), match.group(2)
+        path = output / name
+        if not path.is_file():
+            return match.group(0)
+        version = hashlib.sha256(path.read_bytes()).hexdigest()[:10]
+        return f'{attribute}="{name}?v={version}"'
+
+    for page in output.glob("*.html"):
+        text = page.read_text(encoding="utf-8")
+        page.write_text(re.sub(r'(src|href)="([\w.-]+\.(?:js|css))"', versioned, text), encoding="utf-8")
+
+
 def read_missions(days_folder):
     missions = []
     for file in sorted(Path(days_folder).glob("*.json")):
@@ -130,6 +149,7 @@ def main(argv=None):
     missions = read_missions(args.days)
     if not missions:
         sys.exit(f"No mission found in {args.days}: run collect_static.py first")
+    add_versions(output)  # after config.js, which is versioned like the other scripts
     index = write_data(output / "data", missions)
 
     # A web server must be able to read everything, whatever the permissions of the source files.
