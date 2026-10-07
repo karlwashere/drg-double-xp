@@ -401,8 +401,19 @@ function fillFilters(form, f) {
   // "Must have all selected": only missions without a mutator can have two warnings, so ticking it
   // clears the mutator filter (otherwise Double XP, the default, would always give no result).
   // Listened to on the box itself: the mutator filter is cleared before the form reacts.
-  form.elements.namedItem('warning_mode').addEventListener('change', (e) => {
-    if (e.target.checked) writeMulti(form.elements.namedItem('mutator').closest('.multi'), '');
+  const mode = form.elements.namedItem('warning_mode');
+  const mutatorField = form.elements.namedItem('mutator');
+  mode.addEventListener('change', (e) => {
+    if (e.target.checked) writeMulti(mutatorField.closest('.multi'), '');
+  });
+  // The other way round: choosing an actual mutator afterwards unticks "Must have all selected"
+  // ("No mutator" alone keeps it, since those are the missions that can have two warnings).
+  // Listened to on the mutator block after fillMulti's listener, so its hidden field is up to date.
+  mutatorField.closest('.multi').addEventListener('change', () => {
+    if (mode.checked && mutatorField.value && mutatorField.value !== NO_MUTATOR) {
+      mode.checked = false;
+      readMulti(mode.closest('.multi'));
+    }
   });
   const season = form.elements.namedItem('season');
   for (const s of f.seasons.slice().reverse()) {
