@@ -65,12 +65,17 @@ async function start() {
   search();
 }
 
-form.addEventListener('change', () => search());
+form.addEventListener('change', (e) => {
+  track(`filter-${filterName(e)}`);
+  search();
+});
 document.getElementById('reset').addEventListener('click', () => {
+  track('filter-reset');
   applyFilters(form, defaultValues());
   search();
 });
 moreButton.addEventListener('click', () => {
+  track('history-show-more');
   page += 1;
   search(true);
 });

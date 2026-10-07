@@ -6,4 +6,7 @@
 //
 // currentSeason is only used in "static" mode, to force the current season (in "api" mode it comes
 // from DRG_CURRENT_SEASON). Empty: deduced from the data, like the API does.
-window.DRG_CONFIG = { mode: 'api', currentSeason: '' };
+// readmeUrl : address of the project's README, shown as an "About" link at the top of the pages (none if empty).
+// goatcounter: GoatCounter site code for the visit statistics (none if empty).
+// tools/build_static.py fills both for GitHub Pages.
+window.DRG_CONFIG = { mode: 'api', currentSeason: '', readmeUrl: '', goatcounter: '' };

@@ -1,6 +1,38 @@
 // Shared rendering of the missions (upcoming and history pages).
 const SLOT_MS = 30 * 60 * 1000; // a mission stays available for 30 min
 
+const CONFIG = window.DRG_CONFIG || {};
+
+// Visit statistics (GoatCounter: no cookies, no personal data), only when a site code is configured.
+// Page views are counted without the query string, so that every filter combination is not a separate page.
+if (/^[a-z0-9-]+$/.test(CONFIG.goatcounter || '')) {
+  window.goatcounter = { path: () => location.pathname };
+  const script = document.createElement('script');
+  script.async = true;
+  script.dataset.goatcounter = `https://${CONFIG.goatcounter}.goatcounter.com/count`;
+  script.src = 'https://gc.zgo.at/count.js';
+  document.head.appendChild(script);
+}
+
+// Name of the filter changed by a form event (checkbox lists carry it on their hidden field).
+function filterName(event) {
+  const multi = event.target.closest && event.target.closest('.multi');
+  return multi ? multi.querySelector('input[type=hidden]').name : event.target.name;
+}
+
+// Counts an action (event) in the statistics; does nothing without statistics.
+function track(name) {
+  if (window.goatcounter && window.goatcounter.count) {
+    window.goatcounter.count({ path: name, title: name, event: true });
+  }
+}
+
+// "About" link at the top of the pages, to the project's README.
+if (/^https:\/\//.test(CONFIG.readmeUrl || '')) {
+  document.querySelector('.header').insertAdjacentHTML('beforeend',
+    `<a class="about-link" href="${escapeHtml(CONFIG.readmeUrl)}" rel="noopener" data-readme>About</a>`);
+}
+
 const BIOME_COLORS = {
   'Crystalline Caverns': '#6fc3e8',
   'Salt Pits': '#e6d3a3',
@@ -74,10 +106,31 @@ const CLOCK_DIALOG = `
     <p>A web page can't change your clock by itself, so this uses a small helper installed once on your PC
       (Windows only). <strong>Set clock</strong> asks the helper to change your Windows clock to the time above.
       Afterwards, press <a href="drgtime://reset">Restore PC clock</a>: a shifted clock can disturb other apps and logins.</p>
+    <div class="reassure">
+      <p><strong>The helper is not a program.</strong> It is a plain text PowerShell script, about 130 lines with
+        comments, that you can read from top to bottom before running anything. No compiled code, no installer,
+        nothing hidden.</p>
+      <ul>
+        <li>Nothing is sent over the network.</li>
+        <li>Nothing keeps running in the background: Windows starts it only when you press a button here.</li>
+        <li>It can only set the clock (to a date between 2020 and 2035) or restore it.</li>
+        <li>You can uninstall it at any time.</li>
+      </ul>
+      <details id="script-view">
+        <summary>Read the script here</summary>
+        <div class="script-actions">
+          <button type="button" class="button" id="script-copy">Copy the script</button>
+        </div>
+        <pre id="script-source" tabindex="0">Loading…</pre>
+      </details>
+    </div>
     <h3>First time? Install the helper</h3>
     <ol>
-      <li><a href="clock-helper.ps1" download>Download the clock helper</a> (<code>clock-helper.ps1</code>).
-        It goes to your Downloads folder.</li>
+      <li><a href="clock-helper.ps1" download id="script-download">Download the clock helper</a>
+        (<code>clock-helper.ps1</code>). It goes to your Downloads folder.<br>
+        <span class="muted">Prefer not to download a file? Press <strong>Copy the script</strong> above, paste it into
+        Notepad, save it in your Downloads folder as <code>clock-helper.txt</code>, then rename it to
+        <code>clock-helper.ps1</code>. It is exactly the same file.</span></li>
       <li>Open <strong>PowerShell</strong> (Start menu, type "PowerShell") and run this command
         (change the path if your browser saves files elsewhere):<br>
         <code>powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\\Downloads\\clock-helper.ps1"</code><br>
@@ -96,6 +149,37 @@ const CLOCK_DIALOG = `
 
 function lowerFirst(text) {
   return text.charAt(0).toLowerCase() + text.slice(1);
+}
+
+// "Read the script here": the source is loaded the first time the section is opened.
+async function showScript() {
+  const pre = document.getElementById('script-source');
+  if (pre.dataset.loaded) return;
+  try {
+    const response = await fetch('clock-helper.ps1', { cache: 'no-cache' });
+    if (!response.ok) throw new Error(response.status);
+    pre.textContent = await response.text();
+    pre.dataset.loaded = '1';
+  } catch (e) {
+    pre.textContent = 'Could not load the script. Use the download link below and open it in Notepad.';
+  }
+}
+
+async function copyScript() {
+  await showScript();
+  const pre = document.getElementById('script-source');
+  if (!pre.dataset.loaded) return;
+  try {
+    await navigator.clipboard.writeText(pre.textContent);
+    showClockToast('Script copied. Paste it into Notepad, save it as clock-helper.txt, then rename it to clock-helper.ps1.');
+  } catch (e) {
+    // Clipboard refused (permissions, old browser): select the text so that Ctrl+C works.
+    const range = document.createRange();
+    range.selectNodeContents(pre);
+    getSelection().removeAllRanges();
+    getSelection().addRange(range);
+    showClockToast('Press Ctrl+C to copy the selected script.');
+  }
 }
 
 // With a mission button: confirmation before acting. Without (footer link): plain help.
@@ -144,21 +228,39 @@ document.getElementById('clock-dialog').addEventListener('click', (e) => {
   if (outside) dialog.close(); // click on the backdrop, not inside the window
 });
 
+document.getElementById('script-view').addEventListener('toggle', (e) => {
+  if (e.target.open) {
+    showScript();
+    track('helper-read-script');
+  }
+});
+
 document.addEventListener('click', (e) => {
   if (!e.target.closest) return;
   const button = e.target.closest('.clock-button');
   if (button) {
     openClockDialog(button);
+    track('set-pc-clock-dialog');
   } else if (e.target.closest('[data-clock-help]')) {
     openClockDialog(null);
+    track('helper-help-dialog');
+  } else if (e.target.closest('#script-copy')) {
+    copyScript();
+    track('helper-copy-script');
+  } else if (e.target.closest('#script-download')) {
+    track('helper-download');
+  } else if (e.target.closest('[data-readme]')) {
+    track('readme');
   } else if (e.target.closest('#clock-cancel')) {
     document.getElementById('clock-dialog').close();
   } else if (e.target.closest('#clock-confirm')) {
+    track('set-clock');
     // The drgtime:// link opens normally; we close the window and say the request has been sent.
     document.getElementById('clock-dialog').close();
     showClockToast('Request sent. If nothing happens, install the helper first '
       + '("PC clock helper" at the bottom of the page).');
   } else if (e.target.closest('a[href="drgtime://reset"]')) {
+    track('restore-clock');
     showClockToast('Restore request sent.');
   }
 });

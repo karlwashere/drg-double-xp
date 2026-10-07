@@ -118,16 +118,19 @@ async function start() {
   load();
 }
 
-form.addEventListener('change', () => {
+form.addEventListener('change', (e) => {
+  track(`filter-${filterName(e)}`);
   updateAddress(currentFilters(), defaultFilters);
   refresh();
 });
 document.getElementById('reset').addEventListener('click', () => {
+  track('filter-reset');
   applyFilters(form, defaultFilters);
   updateAddress(currentFilters(), defaultFilters);
   refresh();
 });
 nextDayButton.addEventListener('click', async () => {
+  track('load-one-more-day');
   days += 1;
   if (!(await load())) days -= 1; // failed: keep the period already shown
 });

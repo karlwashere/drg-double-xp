@@ -40,6 +40,18 @@ a { color: var(--amber); }
   padding-bottom: 8px;
 }
 .brand { display: flex; align-items: baseline; gap: 10px; text-decoration: none; }
+.about-link {
+  font: 500 13px/1 'Chakra Petch', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 14px;
+}
+.about-link:hover { color: var(--amber); border-color: var(--amber); }
+.about-link:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 
 /* Tabs: full-width bar under the filters */
 .tabs {
@@ -226,6 +238,31 @@ a { color: var(--amber); }
   overflow-wrap: anywhere;
 }
 .dialog .note { color: var(--muted); font-size: 13px; }
+.dialog .muted { color: var(--muted); font-size: 13px; }
+.reassure {
+  background: var(--card-raised);
+  border: 1px solid #2f4a2f;
+  border-left: 3px solid #6fbf6f;
+  border-radius: 8px;
+  padding: 4px 14px 12px;
+  margin: 16px 0;
+}
+.reassure ul { padding-left: 20px; margin: 6px 0 10px; }
+.reassure li { margin: 2px 0; }
+.reassure summary { cursor: pointer; color: var(--amber); font-size: 14px; font-weight: 600; }
+.reassure summary:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.script-actions { margin: 10px 0 8px; }
+#script-source {
+  max-height: 260px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--bg, #121212);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: 12px/1.45 ui-monospace, Consolas, monospace;
+  white-space: pre;
+}
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .dialog-actions .button { text-decoration: none; display: inline-block; }
 

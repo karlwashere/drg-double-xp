@@ -155,6 +155,29 @@ class StaticSiteBuild(unittest.TestCase):
                 build_static.main(["--days", str(days), "--site", str(site), "--output", str(tmp / "dist")])
             self.assertIn('"currentSeason": ""', (tmp / "dist" / "config.js").read_text(encoding="utf-8"))
 
+    def build_config(self, env, *args):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            days, site = self.prepare(tmp)
+            clean = {"GITHUB_REPOSITORY": "", "DRG_GOATCOUNTER": "", "DRG_CURRENT_SEASON": ""}
+            with contextlib.redirect_stdout(io.StringIO()), mock.patch.dict(os.environ, {**clean, **env}):
+                build_static.main(["--days", str(days), "--site", str(site), "--output", str(tmp / "dist"), *args])
+            text = (tmp / "dist" / "config.js").read_text(encoding="utf-8")
+            return json.loads(text[text.index("{"):text.rindex("}") + 1])
+
+    def test_readme_link_and_statistics(self):
+        config = self.build_config({"GITHUB_REPOSITORY": "owner/repo", "DRG_GOATCOUNTER": "my-site"})
+        self.assertEqual(config["readmeUrl"], "https://github.com/owner/repo#readme")
+        self.assertEqual(config["goatcounter"], "my-site")
+
+    def test_no_readme_link_nor_statistics_by_default(self):
+        config = self.build_config({})
+        self.assertEqual((config["readmeUrl"], config["goatcounter"]), ("", ""))
+
+    def test_invalid_statistics_code(self):
+        with self.assertRaises(SystemExit):
+            self.build_config({"DRG_GOATCOUNTER": "https://evil.example/x"})
+
     def test_invalid_season(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)

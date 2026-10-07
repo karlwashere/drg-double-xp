@@ -1,12 +1,8 @@
 # DRG Double XP
 
-[![Pages](https://github.com/karlwashere/drg-double-xp/actions/workflows/pages.yml/badge.svg)](https://github.com/karlwashere/drg-double-xp/actions/workflows/pages.yml)
-[![Tests](https://github.com/karlwashere/drg-double-xp/actions/workflows/tests.yml/badge.svg)](https://github.com/karlwashere/drg-double-xp/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A small website that shows the **Double XP missions of [Deep Rock Galactic](https://www.deeprockgalactic.com/)**: what is live right now, what is coming in the next days, and a searchable archive of everything since May 2026. An optional Windows helper adds a **"Set PC clock"** button that sets your computer's clock to a mission's start time, so you can actually play it.
-
-**Live demo (GitHub Pages): <https://karlwashere.github.io/drg-double-xp/>**
 
 | Upcoming | History |
 | --- | --- |
@@ -49,8 +45,8 @@ A web page cannot change your operating system's clock, so the button relies on 
 
 If downloading a file makes you uneasy, you do not have to download it at all. Create it yourself:
 
-1. Open [the script on GitHub](site/clock-helper.ps1) and click **Raw** to see it as plain text. Read it if you like.
-2. Select everything (<kbd>Ctrl</kbd>+<kbd>A</kbd>), copy it (<kbd>Ctrl</kbd>+<kbd>C</kbd>), and paste it into a new **Notepad** document.
+1. On the site, open the help dialog (**Set PC clock**, or **PC clock helper** at the bottom of the page), then **Read the script here** and **Copy the script**. Or open [the script on GitHub](site/clock-helper.ps1), click **Raw**, select everything (<kbd>Ctrl</kbd>+<kbd>A</kbd>) and copy it (<kbd>Ctrl</kbd>+<kbd>C</kbd>). Read it if you like.
+2. Paste it into a new **Notepad** document.
 3. Save it in your **Downloads** folder as `clock-helper.txt`.
 4. Rename it to `clock-helper.ps1`. If Windows hides the `.txt` part, turn on *File name extensions* in File Explorer (**View → Show** on Windows 11, **View** tab on Windows 10).
 
@@ -124,7 +120,8 @@ Changing the clock can affect online services and other software. Use it at your
 
 ## Privacy
 
-- No cookies, no analytics, no accounts, no tracking.
+- No cookies, no accounts, no ads.
+- **Visit statistics**, only when the site owner configures them (GitHub Pages: repository variable `DRG_GOATCOUNTER`): the pages then load [GoatCounter](https://www.goatcounter.com/), an open-source statistics service that uses **no cookies** and **stores no personal data**. It counts page views (without the address's filters), where visitors come from (referring site, country), browser and screen size, and a few anonymous actions: opening the clock dialog, reading, copying or downloading the helper script, *Set clock* / *Restore PC clock*, filter changes, *Load one more day* and *Show more*. Nothing is counted when the variable is not set, nor on a self-hosted server.
 - The pages load two web fonts (*Chakra Petch* and *Inter*) from Google Fonts. Remove the three `<link>` lines in `site/index.html` and `site/history.html` if you want zero third-party requests (the fonts then fall back to system fonts).
 - The only thing kept in your browser is your last filters (`localStorage`, key `drg-filters`), so that they are back on your next visit. *Reset* clears them.
 - The helper runs locally and never contacts the network.

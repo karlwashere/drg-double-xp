@@ -51,6 +51,8 @@ jobs:
           # Optional repository variable (Settings > Secrets and variables > Actions > Variables) to force
           # the current season. When it is not set, the site deduces it from the data.
           DRG_CURRENT_SEASON: ${{ vars.DRG_CURRENT_SEASON }}
+          # Optional repository variable: GoatCounter site code (yourcode.goatcounter.com) for visit statistics.
+          DRG_GOATCOUNTER: ${{ vars.DRG_GOATCOUNTER }}
         run: python tools/build_static.py --output dist
 
       - uses: actions/configure-pages@v5
