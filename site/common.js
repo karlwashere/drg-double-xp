@@ -2,6 +2,7 @@
 const SLOT_MS = 30 * 60 * 1000; // a mission stays available for 30 min
 const DEFAULT_MUTATOR = 'Double XP'; // the mutator selected by default in the filters
 const NO_MUTATOR = 'none'; // filter value for the missions without a mutator
+const NO_WARNING = 'none'; // filter value for the missions without any warning
 
 // "Double XP mission" when the filters only keep Double XP missions, "mission" otherwise.
 function missionKind(filters) {
@@ -384,6 +385,8 @@ function fillFilters(form, f) {
   fillMulti(form.elements.namedItem('biome').closest('.multi'), f.biomes);
   fillMulti(form.elements.namedItem('mutator').closest('.multi'), [...f.mutators, NO_MUTATOR],
     (v) => (v === NO_MUTATOR ? 'No mutator' : v));
+  fillMulti(form.elements.namedItem('warning').closest('.multi'), [...f.warnings, NO_WARNING],
+    (v) => (v === NO_WARNING ? 'No warning' : v));
   const season = form.elements.namedItem('season');
   for (const s of f.seasons.slice().reverse()) {
     season.add(new Option(s === f.current_season ? `Current (${s.slice(1)})` : seasonName(s), s));

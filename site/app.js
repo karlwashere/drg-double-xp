@@ -2,7 +2,7 @@
 // ones, loaded 24 hours at a time ("Load one more day") and shown 100 at a time ("Show more missions").
 const form = document.getElementById('filters');
 // The default season is the current one, known once api/filters has been loaded.
-let defaultFilters = { mission: '', biome: '', mutator: DEFAULT_MUTATOR, length: '', season: '' };
+let defaultFilters = { mission: '', biome: '', mutator: DEFAULT_MUTATOR, warning: '', length: '', season: '' };
 const nextDayButton = document.getElementById('next-day');
 const moreButton = document.getElementById('more-missions');
 const MAX_DAYS = 14; // limit of the API (api/upcoming)

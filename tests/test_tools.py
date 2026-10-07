@@ -189,6 +189,7 @@ class StaticSiteBuild(unittest.TestCase):
             index = json.loads((dist / "data" / "index.json").read_text(encoding="utf-8"))
             self.assertEqual(index["months"], [{"month": "2026-10", "count": 6}])  # the 5 of SOURCE + the 7th's
             self.assertEqual(index["mutators"], ["Double XP", "Other mutator"])
+            self.assertEqual(index["warnings"], ["Pit Jaw Colony"])
             self.assertEqual((index["archive_since"], index["known_until"]), ("2026-10-06T16:30:00Z", "2026-10-07T01:00:00Z"))
 
     def test_month_file_round_trip(self):
@@ -302,6 +303,16 @@ class Api(unittest.TestCase):
         self.assertEqual(self.biomes(mutator="none,Other mutator"), ["Azure Weald", "Salt Pits"])
         self.assertEqual(self.biomes(mutator="Unknown"), [])
         self.assertEqual(api.filters({})["mutators"], ["Double XP", "Other mutator"])
+
+    def test_warnings(self):
+        # SOURCE: Salt Pits/Escort Duty has "Pit Jaw Colony"; every other mission has no warning.
+        self.assertEqual(self.biomes(warning="Pit Jaw Colony"), ["Salt Pits"])
+        self.assertEqual(self.biomes(warning="Pit Jaw Colony", mutator="Double XP"), ["Salt Pits"])
+        self.assertEqual(self.biomes(warning="Pit Jaw Colony", mutator="Other mutator"), [])
+        self.assertEqual(self.biomes(warning="none", mutator="Double XP"), ["Azure Weald", "Hollow Bough", "Magma Core"])
+        self.assertEqual(len(self.biomes(warning="none,Pit Jaw Colony")), 6)
+        self.assertEqual(self.biomes(warning="Unknown"), [])
+        self.assertEqual(api.filters({})["warnings"], ["Pit Jaw Colony"])
 
     def test_upcoming_is_filtered(self):
         self.assertEqual([m["name"] for m in api.upcoming({"mutator": "Double XP"})["missions"]], ["Recent"])

@@ -74,6 +74,7 @@ def write_data(folder, missions):
         "missions": sorted({m["mission"] for m in missions}),
         "biomes": sorted({m["biome"] for m in missions}),
         "mutators": sorted({m["mutator"] for m in missions if m.get("mutator") is not None}),
+        "warnings": sorted({w for m in missions for w in m["warnings"]}),
         "seasons": seasons,
         "archive_since": missions[0]["start"],
         "known_until": missions[-1]["start"],

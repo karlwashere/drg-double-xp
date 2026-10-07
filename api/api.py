@@ -5,9 +5,10 @@ GET /api/upcoming?hours=24&...  missions not finished yet, starting within the n
 GET /api/filters                possible filter values + current season
 GET /api/missions?...&period=&page=
 
-Both mission lists accept the same filters: mission=, biome=, mutator=, length=, season=.
-mission, biome and mutator accept several values separated by commas; mutator=none selects
-the missions without a mutator.
+Both mission lists accept the same filters: mission=, biome=, mutator=, warning=, length=, season=.
+mission, biome, mutator and warning accept several values separated by commas; mutator=none and
+warning=none select the missions without a mutator / without any warning. A mission matches the
+warning filter when it has at least one of the selected warnings.
 """
 import json
 import os
@@ -23,7 +24,7 @@ DB_PATH = os.environ.get("DRG_DB", "/data/drg.db")
 FORCED_SEASON = os.environ.get("DRG_CURRENT_SEASON", "")
 SLOT_DURATION = timedelta(minutes=30)
 PER_PAGE = 50
-NO_MUTATOR = "none"
+NO_MUTATOR = NO_WARNING = "none"
 FILTERS_CACHE_SECONDS = 300  # the filter values only change with a new collection
 
 
@@ -72,6 +73,14 @@ def filter_conditions(params):
             parts.append("mutator IS NULL")
         conditions.append(f"({' OR '.join(parts)})")
         values.extend(named)
+    warnings = choice(params, "warning")
+    if warnings:
+        # warnings is a JSON list of strings: looking for the quoted value is an exact match.
+        parts = ["instr(warnings, ?) > 0" for w in warnings if w != NO_WARNING]
+        values.extend(json.dumps(w, ensure_ascii=False) for w in warnings if w != NO_WARNING)  # as stored
+        if NO_WARNING in warnings:
+            parts.append("warnings = '[]'")
+        conditions.append(f"({' OR '.join(parts)})")
     if params.get("length"):
         conditions.append("length = ?")
         values.append(int(params["length"]))
@@ -118,11 +127,13 @@ def filters(_params):
         biomes = [r[0] for r in db.execute("SELECT DISTINCT biome FROM missions ORDER BY 1")]
         mutators = [r[0] for r in db.execute(
             "SELECT DISTINCT mutator FROM missions WHERE mutator IS NOT NULL ORDER BY 1")]
+        warnings = [r[0] for r in db.execute(
+            "SELECT DISTINCT j.value FROM (SELECT DISTINCT warnings FROM missions) w, json_each(w.warnings) j ORDER BY 1")]
         seasons = [r[0] for r in db.execute(
             "SELECT DISTINCT j.value FROM (SELECT DISTINCT seasons FROM missions) s, json_each(s.seasons) j ORDER BY 1")]
         first, last = db.execute("SELECT MIN(start), MAX(start) FROM missions").fetchone()
         season = current_season(db)
-    value = {"missions": missions, "biomes": biomes, "mutators": mutators, "seasons": seasons,
+    value = {"missions": missions, "biomes": biomes, "mutators": mutators, "warnings": warnings, "seasons": seasons,
              "current_season": season, "archive_since": first, "known_until": last}
     _filters_cache.update(at=time.monotonic(), value=value)
     return value

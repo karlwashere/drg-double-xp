@@ -9,6 +9,7 @@
   const SLOT_MS = 30 * 60 * 1000; // a mission stays available for 30 min
   const VALIDITY_MS = 5 * 60 * 1000; // the index is not downloaded again more than once every 5 min
   const NO_MUTATOR = 'none';
+  const NO_WARNING = 'none';
   // Row layout of a month file.
   const START = 0, BIOME = 1, MISSION = 2, SECONDARY = 3, LENGTH = 4, COMPLEXITY = 5,
     WARNINGS = 6, MUTATOR = 7, NAME = 8, SEASONS = 9;
@@ -89,11 +90,16 @@
       const k = v === NO_MUTATOR ? -1 : d.mutator.indexOf(v);
       if (v === NO_MUTATOR || k !== -1) mutators.add(k);
     }
+    // A mission matches the warning filter when it has at least one of the selected warnings.
+    const warningValues = choice(params.warning);
+    const noWarning = !!warningValues && warningValues.includes(NO_WARNING);
+    const warnings = warningValues && new Set(warningValues.map((v) => d.warning.indexOf(v)).filter((k) => k !== -1));
     const length = params.length ? integer(params.length) : null;
     const season = params.season ? d.season.indexOf(params.season) : null;
     return (r) => (!missionTypes || missionTypes.has(r[MISSION]))
       && (!biomes || biomes.has(r[BIOME]))
       && (!mutators || mutators.has(r[MUTATOR]))
+      && (!warnings || (noWarning && r[WARNINGS].length === 0) || r[WARNINGS].some((w) => warnings.has(w)))
       && (length === null || r[LENGTH] === length)
       && (season === null || r[SEASONS].includes(season));
   }
@@ -160,6 +166,7 @@
       missions: i.missions,
       biomes: i.biomes,
       mutators: i.mutators,
+      warnings: i.warnings,
       seasons: i.seasons,
       current_season: await currentSeason(i.known_until),
       archive_since: i.archive_since,
