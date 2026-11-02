@@ -9,16 +9,23 @@ GitHub Actions run to the next.
 - Yesterday and the next DAYS_AHEAD days are reloaded (forecasts can change after a game update).
 - A file is only rewritten when its content changes: no pointless commits.
 - A file written by an older version (Double XP missions only, no "mutator" field) is downloaded again.
+- If doublexp.net cannot be reached, the archive is kept as it is and the run succeeds with a warning, as long
+  as the stored forecasts still cover the next MIN_DAYS_AHEAD days (an outage of a few hours is not an error);
+  past that, the run fails so that the problem gets noticed.
 
 Usage: collect_static.py [days_folder]   (default: data/days)
 """
 import json
+import socket
 import sys
 import time
+import urllib.error
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from collect import ARCHIVE_START, DAYS_AHEAD, DAYS_TO_REFRESH, all_missions, download
+
+MIN_DAYS_AHEAD = 3  # below this, an unreachable source becomes an error
 
 
 def day_missions(data):
@@ -73,7 +80,11 @@ def main():
     while day <= today + timedelta(days=DAYS_AHEAD):
         key = day.isoformat()
         if not (up_to_date(folder / f"{key}.json") and day < frozen_before):
-            data = download(key)
+            try:
+                data = download(key)
+            except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError) as e:
+                # HTTPError (5xx) is a URLError too; a 404 never gets here (download returns None)
+                return source_unreachable(folder, today, key, e)
             if data is None:
                 print(f"{key}: not published yet")
             else:
@@ -85,7 +96,20 @@ def main():
         day += timedelta(days=1)
 
     print(f"{downloaded} days downloaded, {changed} files changed")
+    return 0
+
+
+def source_unreachable(folder, today, key, error):
+    """doublexp.net does not answer: keep the archive; fail only if the forecasts are about to run out."""
+    stored = sorted(p.stem for p in Path(folder).glob("*.json"))
+    last = stored[-1] if stored else None
+    ahead = (datetime.fromisoformat(last).date() - today).days if last else -1
+    if ahead >= MIN_DAYS_AHEAD:
+        print(f"::warning::doublexp.net unreachable ({key}: {error}); archive kept, forecasts until {last} ({ahead} days ahead)")
+        return 0
+    print(f"::error::doublexp.net unreachable ({key}: {error}) and forecasts only until {last}", file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
